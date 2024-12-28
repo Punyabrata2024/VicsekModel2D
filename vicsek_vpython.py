@@ -1,90 +1,69 @@
-Web VPython 3.2
-import random as rr
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
+# Parameters
+N = 100  # Number of birds
+v0 = 0.3  # Speed of each bird
+R = 0.1  # Interaction radius
+r = 0.01  # Separation radius to avoid collision
+eta = 0.5  # Noise
+L = 1.0  # Scale of the canvas - area of flocking
+dt = 0.01  # Time step
 
-g = graph(title="avg_v vs t", xtitle="t", ytitle = "avg_v")
-f1 = gcurve(color=color.blue, dot = True)
-canvas(title="Flocking behaviour simulation using boid algorithm",width=800, height = 600, background=color.white)
+# Initialize positions and velocities
+positions = np.random.rand(N, 2) * L
+angles = np.random.rand(N) * 2 * np.pi
+velocities = v0 * np.column_stack((np.cos(angles), np.sin(angles)))
 
-N = 100#No. of birds
-v0=0.3#speed of each bird
-R =1#interaction radius
-r = 0#separation radius to avoid collision
-eta = .5#noise
-particles=[]
-arrows=[]
-L=5#to scale the canvas - area of flocking
-vscale = 0.1
-t= 0#time
-dt = 0.01
-circle = ring(pos=vector(0,0,0),axis=vector(0,0,1), radius = R, thickness = 0.1, color = color.black)
-circle2 = ring(pos=vector(0,0,0),axis=vector(0,0,1), radius = r, thickness = 0.1, color = color.red)
-def rand():#to generate -1 or 1 randomly for assigning random positions and directions of motion during initialisation
-  
-  if random()<0.5:
-    c = -1
-  else:
-    c=1
-  return c
-  
-for i in range(N):#initialising
-  angle = random()*pi*rand()
-  particle = sphere(pos=L*vector.random()*rand(), radius = 0.01, color=color.black)
-  particle.pos.z=0
-  particle.v = v0*vector(cos(angle),sin(angle),0)
-  myarrow=arrow(pos=particle.pos, axis=vscale*norm(particle.v), color=color.black)
-  particles.append(particle)
-  arrows.append(myarrow)
-  print (particle.v)
+# Calculate normalized order parameter
+def calc_order_parameter():
+    avg_velocity = np.mean(velocities, axis=0)
+    order_parameter = np.linalg.norm(avg_velocity) / v0
+    return order_parameter
 
+# Update positions function
 def update_positions():
- 
-  for i in range(N):
-    neighbours =[]
-    neighb = []
-    for j in range(N):#to detect neighbours
-      if i!=j and mag(particles[j].pos-particles[i].pos)<R:
-        neighbours.append(particles[j].v)
-        neighb.append(particles[j])
-    avg_dir = vector(0,0,0)
-    if len(neighbours)!= 0:
-      for neigh_v in neighbours:#calculating avg direction of motion of neighbours in interaction radius
-        avg_dir += neigh_v
-      avg_dir = avg_dir/len(neighbours)
-    noise = random()*eta*rand()/2 #generating a random noise
-    new_angle = atan2(avg_dir.y,avg_dir.x) + noise #new angle for alignment in flock
-    if len(neighbours)!= 0:
-      particles[i].v = v0*vector(cos(new_angle),sin(new_angle),0)#updating velocities
-    particles[i].pos += particles[i].v*dt#updating positions
-    
-    if particles[i].pos.x>L:
-      particles[i].pos.x -= 2*L
-    if particles[i].pos.x<-L:
-      particles[i].pos.x += 2*L
-    if particles[i].pos.y>L:
-      particles[i].pos.y -= 2*L
-    if particles[i].pos.y<-L:
-      particles[i].pos.y += 2*L
-    for neighbor in neighb:
+    global positions, velocities
+    new_velocities = np.zeros_like(velocities)
+    for i in range(N):
+        # Find neighbors
+        diffs = positions - positions[i]
+        dists = np.linalg.norm(diffs, axis=1)
+        neighbors = (dists < R) & (dists > 0)
+        
+        if np.any(neighbors):
+            # Average direction of neighbors
+            avg_velocity = np.mean(velocities[neighbors], axis=0)
+            angle = np.arctan2(avg_velocity[1], avg_velocity[0])
+            noise = eta * (np.random.rand() - 0.5)
+            new_angle = angle + noise
+            new_velocities[i] = v0 * np.array([np.cos(new_angle), np.sin(new_angle)])
+        else:
+            new_velocities[i] = velocities[i]
 
-    arrows[i].pos=particles[i].pos
-    arrows[i].axis=vscale*particles[i].v
-    circle.v=particles[N/2].v
-    circle.pos=particles[N/2].pos
-    circle2.v=particles[N/2].v
-    circle2.pos=particles[N/2].pos
+    velocities = new_velocities
+    positions += velocities * dt
 
-avg_v = vector(0,0,0)
-net_dir= arrow(pos=vector(0,0,0),axis=avg_v, color=color.red)
+    # Handle boundary conditions
+    positions = np.mod(positions, L)
 
+# Animation function
+def animate(frame):
+    update_positions()
+    scat.set_offsets(positions)
+    arrows.set_offsets(positions)
+    arrows.set_UVC(velocities[:, 0], velocities[:, 1])
+    order_param = calc_order_parameter()
+    order_text.set_text(f"Order Parameter: {order_param:.2f}")
 
-while True:
-  rate(20)
-  update_positions()
-  t = t+dt
-  for i in range(N):
-    avg_v = avg_v + particles[i].v
-  avg_v /= N
-  net_dir.axis=avg_v
-  print ("The magnitude of average velocity of net movement is", mag(avg_v), "corresponds to", avg_v)
-  f1.plot(t,mag(avg_v))
+# Plot setup
+fig, ax = plt.subplots()
+ax.set_xlim(0, L)
+ax.set_ylim(0, L)
+scat = ax.scatter(positions[:, 0], positions[:, 1], s=20)
+arrows = ax.quiver(positions[:, 0], positions[:, 1], velocities[:, 0], velocities[:, 1], angles='xy', scale_units='xy', scale=0.5)  # Adjust scale to make arrows double the size of particles
+order_text = ax.text(0.05, 0.95, '', transform=ax.transAxes, fontsize=14, verticalalignment='top')
+
+ani = animation.FuncAnimation(fig, animate, frames=200, interval=50)
+plt.show()
