@@ -9,7 +9,7 @@ R = 0.1  # Interaction radius
 r = 0.01  # Separation radius to avoid collision
 eta = 0.5  # Noise
 L = 1.0  # Scale of the canvas - area of flocking
-dt = 0.01  # Time step
+dt = 0.001  # Time step
 
 # Initialize positions and velocities
 positions = np.random.rand(N, 2) * L
