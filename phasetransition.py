@@ -3,14 +3,14 @@ import matplotlib.pyplot as plt
 
 # Parameters
 v0 = 0.3  # Speed of each bird
-R = 0.1  # Interaction radius
+R = 1  # Interaction radius
 r = 0.01  # Separation radius to avoid collision
-L = 1.0  # Scale of the canvas - area of flocking
+L = 4.0  # Scale of the canvas - area of flocking
 dt = 0.001  # Time step
-T = 500  # Simulation time
+T = 50  # Simulation time
 realizations = 15  # Number of realizations
 noise_values = np.linspace(0, 3.5, 10)  # Noise values
-N_values = [100, 500, 800]  # Different values of N
+N_values = [100, 500, 1000]  # Different values of N
 
 def initialize(N):
     positions = np.random.rand(N, 2) * L
